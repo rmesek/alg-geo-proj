@@ -1,7 +1,11 @@
 from __future__ import annotations
+from collections.abc import Callable
 import heapq
 from collections import deque
 from enum import Enum
+
+from sortedcontainers import SortedList
+
 from scripts.helper.utils import Point
 
 
@@ -15,6 +19,8 @@ class PointType(Enum):
 
 
 class Edge:
+    line_y: float | None = None
+
     def __init__(self, source: ColorPoint, target: ColorPoint, helper: None | ColorPoint = None) -> None:
         self.source = source
         self.target = target
@@ -22,6 +28,38 @@ class Edge:
 
     def __repr__(self) -> str:
         return f"Edge({self.source}->{self.target})"
+
+    def __eq__(self, __value: object) -> bool:
+        if not isinstance(__value, Edge):
+            return NotImplemented
+        return (self.source == __value.source and self.target == __value.target) or (self.source == __value.target and self.target == __value.source)
+
+    def __gt__(self, __value: object) -> bool:
+        if Edge.line_y is None:
+            raise RuntimeError("Swipeline's value is not set!")
+        if isinstance(__value, Edge):
+            return Edge.find_sweep_intersection(self, Edge.line_y) > Edge.find_sweep_intersection(__value, Edge.line_y)
+        elif isinstance(__value, float | int):
+            return Edge.find_sweep_intersection(self, Edge.line_y) > __value
+        return NotImplemented
+
+    @staticmethod
+    def find_sweep_intersection(edge: Edge, y: float) -> float:
+        """https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Given_two_points_on_each_line"""
+        x_1, y_1 = edge.source.as_tuple()
+        x_2, y_2 = edge.target.as_tuple()
+
+        denom = y_1 - y_2
+        if denom == 0:
+            raise RuntimeError(f"Could not find intersection between {edge} and {y=}")
+            return None
+        p_x = ((y_1 * x_2 - x_1 * y_2) + (x_1 - x_2) * y) / denom
+        # p_y = ((y_1 - y_2) * y) / denom
+
+        if not min(x_1, x_2) <= p_x <= max(x_1, x_2):
+            raise RuntimeError(f"Could not find intersection between {edge} and {y=}")
+            return None
+        return p_x
 
     @staticmethod
     def as_deque(points: list[ColorPoint]) -> deque[Edge]:
@@ -91,29 +129,16 @@ class ColorPoint(Point):
         return colored_points
 
 
-def find_sweep_intersection(edge: Edge, y: float) -> float:
-    """https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Given_two_points_on_each_line"""
-    x_1, y_1 = edge.source.as_tuple()
-    x_2, y_2 = edge.target.as_tuple()
-
-    denom = y_1 - y_2
-    if denom == 0:
-        raise RuntimeError(f"Could not find intersection between {edge} and {y=}")
-        return None
-    p_x = ((y_1 * x_2 - x_1 * y_2) + (x_1 - x_2) * y) / denom
-    # p_y = ((y_1 - y_2) * y) / denom
-
-    if not min(x_1, x_2) <= p_x <= max(x_1, x_2):
-        raise RuntimeError(f"Could not find intersection between {edge} and {y=}")
-        return None
-    return p_x
-
-
 def make_monotone(polygon: list[tuple[float, float]]) -> deque[Edge]:
     Q = ColorPoint.color_points(Point.as_points(polygon))
     D = Edge.as_deque(Q)  # double linked list of edges
     heapq.heapify(Q)  # event queue
-    # TODO T = BST()  # sweep line status tree
+    T = SortedList()  # sweep line status tree [https://grantjenks.com/docs/sortedcontainers/sortedlist.html#sortedlist]
+
+    while Q:
+        color_point = heapq.heappop(Q)
+        # TODO: handle color_point
+
     return D
 
 
@@ -138,10 +163,17 @@ if __name__ == "__main__":
     #     (1, 3),
     #     (0, 1),
     # ]
-    # polygon_example = [(0, 0), (1, 0), (0.5, 1)]
+    polygon_example = [(0, 0), (1, 0), (0.5, 1)]
     # polygon_example_colors = [1, 3, 1, 0, 2, 4, 0, 2, 0, 4, 1, 4, 4, 3, 4, 2, 0, 4]
 
     # print(make_monotone(polygon_example))
 
-    edge = Edge(ColorPoint(-3,-1), ColorPoint(-2, 3))
-    print(find_sweep_intersection(edge, -1))
+    # edge = Edge(ColorPoint(-3, -1), ColorPoint(-2, 3))
+    # sl = SortedList()
+    # Edge.line_y = 0
+    # sl.add(Edge(ColorPoint(-3, -1), ColorPoint(-2, 3)))
+    # sl.add(Edge(ColorPoint(-1, 3), ColorPoint(2, -1)))
+    # sl.add(Edge(ColorPoint(-1, 1), ColorPoint(1, -1)))
+    # print(sl[sl.bisect_right(1)])
+    # print(edge > -2)
+    print(make_monotone(polygon_example))
