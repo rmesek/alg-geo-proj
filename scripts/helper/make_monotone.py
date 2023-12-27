@@ -1,5 +1,6 @@
 from __future__ import annotations
 import heapq
+from collections import deque
 from enum import Enum
 from scripts.helper.utils import Point
 
@@ -13,10 +14,37 @@ class PointType(Enum):
     CORRECT = 4
 
 
+class Edge:
+    def __init__(self, source: ColorPoint, target: ColorPoint) -> None:
+        self.source = source
+        self.target = target
+
+    def __repr__(self) -> str:
+        return f"Edge({self.source}->{self.target})"
+
+    @staticmethod
+    def as_deque(points: list[ColorPoint]) -> deque[Edge]:
+        """https://wiki.python.org/moin/TimeComplexity#collections.deque"""
+        D = deque()
+        for i in range(1, len(points)):
+            edge = Edge(points[i - 1], points[i])
+            points[i - 1].source_edge = edge
+            points[i].target_edge = edge
+            D.append(edge)
+
+        edge = Edge(points[-1], points[0])
+        points[-1].source_edge = edge
+        points[0].target_edge = edge
+        D.append(edge)
+        return D
+
+
 class ColorPoint(Point):
-    def __init__(self, x: float, y: float, type: PointType = PointType.UNKNOWN):
+    def __init__(self, x: float, y: float, type: PointType = PointType.UNKNOWN, source_edge=None, target_edge=None) -> None:
         super().__init__(x, y)
         self.type = type
+        self.source_edge = source_edge
+        self.target_edge = target_edge
 
     def __repr__(self) -> str:
         return f"Point({self.type.name}: {self.x}, {self.y})"
@@ -62,6 +90,12 @@ class ColorPoint(Point):
         return colored_points
 
 
+def make_monotone(polygon: list[tuple[float, float]]) -> deque[Edge]:
+    color_points = ColorPoint.color_points(Point.as_points(polygon))
+    D = Edge.as_deque(color_points)
+    return D
+
+
 if __name__ == "__main__":
     polygon_example = [
         (2, 0),
@@ -83,10 +117,16 @@ if __name__ == "__main__":
         (1, 3),
         (0, 1),
     ]
+    polygon_example = [(0, 0), (1, 0), (0.5, 1)]
     polygon_example_colors = [1, 3, 1, 0, 2, 4, 0, 2, 0, 4, 1, 4, 4, 3, 4, 2, 0, 4]
 
-    color_points = ColorPoint.color_points(Point.as_points(polygon_example))
-    print(color_points)
+    print(make_monotone(polygon_example))
+
+    # color_points = ColorPoint.color_points(Point.as_points(polygon_example))
+    # print(color_points)
+    # print(Edge.as_deque(color_points))
+    # print(color_points[0].target_edge)
+    # print(Edge(ColorPoint(1, 1), ColorPoint(1, 1)))
 
     # a = ColorPoint(1, 1, PointType.STARTING)
     # b = ColorPoint(2, 2)
