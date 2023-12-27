@@ -15,9 +15,10 @@ class PointType(Enum):
 
 
 class Edge:
-    def __init__(self, source: ColorPoint, target: ColorPoint) -> None:
+    def __init__(self, source: ColorPoint, target: ColorPoint, helper: None | ColorPoint = None) -> None:
         self.source = source
         self.target = target
+        self.helper = helper
 
     def __repr__(self) -> str:
         return f"Edge({self.source}->{self.target})"
@@ -90,49 +91,57 @@ class ColorPoint(Point):
         return colored_points
 
 
+def find_sweep_intersection(edge: Edge, y: float) -> float:
+    """https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Given_two_points_on_each_line"""
+    x_1, y_1 = edge.source.as_tuple()
+    x_2, y_2 = edge.target.as_tuple()
+
+    denom = y_1 - y_2
+    if denom == 0:
+        raise RuntimeError(f"Could not find intersection between {edge} and {y=}")
+        return None
+    p_x = ((y_1 * x_2 - x_1 * y_2) + (x_1 - x_2) * y) / denom
+    # p_y = ((y_1 - y_2) * y) / denom
+
+    if not min(x_1, x_2) <= p_x <= max(x_1, x_2):
+        raise RuntimeError(f"Could not find intersection between {edge} and {y=}")
+        return None
+    return p_x
+
+
 def make_monotone(polygon: list[tuple[float, float]]) -> deque[Edge]:
-    color_points = ColorPoint.color_points(Point.as_points(polygon))
-    D = Edge.as_deque(color_points)
+    Q = ColorPoint.color_points(Point.as_points(polygon))
+    D = Edge.as_deque(Q)  # double linked list of edges
+    heapq.heapify(Q)  # event queue
+    # TODO T = BST()  # sweep line status tree
     return D
 
 
 if __name__ == "__main__":
-    polygon_example = [
-        (2, 0),
-        (5, 1),
-        (6, 0),
-        (8, 3),
-        (7, 2),
-        (8, 7),
-        (6, 9),
-        (5, 8),
-        (2, 9),
-        (1, 7),
-        (2, 4),
-        (4, 5),
-        (3, 6),
-        (5, 7),
-        (5.5, 3),
-        (2, 2),
-        (1, 3),
-        (0, 1),
-    ]
-    polygon_example = [(0, 0), (1, 0), (0.5, 1)]
-    polygon_example_colors = [1, 3, 1, 0, 2, 4, 0, 2, 0, 4, 1, 4, 4, 3, 4, 2, 0, 4]
+    # polygon_example = [
+    #     (2, 0),
+    #     (5, 1),
+    #     (6, 0),
+    #     (8, 3),
+    #     (7, 2),
+    #     (8, 7),
+    #     (6, 9),
+    #     (5, 8),
+    #     (2, 9),
+    #     (1, 7),
+    #     (2, 4),
+    #     (4, 5),
+    #     (3, 6),
+    #     (5, 7),
+    #     (5.5, 3),
+    #     (2, 2),
+    #     (1, 3),
+    #     (0, 1),
+    # ]
+    # polygon_example = [(0, 0), (1, 0), (0.5, 1)]
+    # polygon_example_colors = [1, 3, 1, 0, 2, 4, 0, 2, 0, 4, 1, 4, 4, 3, 4, 2, 0, 4]
 
-    print(make_monotone(polygon_example))
+    # print(make_monotone(polygon_example))
 
-    # color_points = ColorPoint.color_points(Point.as_points(polygon_example))
-    # print(color_points)
-    # print(Edge.as_deque(color_points))
-    # print(color_points[0].target_edge)
-    # print(Edge(ColorPoint(1, 1), ColorPoint(1, 1)))
-
-    # a = ColorPoint(1, 1, PointType.STARTING)
-    # b = ColorPoint(2, 2)
-    # c = ColorPoint(3, 2)
-    # q = [a, b, c]
-    # print(ColorPoint.classify(a,b,c))
-    # heapq.heapify(q)
-    # while q:
-    #     print(heapq.heappop(q))
+    edge = Edge(ColorPoint(-3,-1), ColorPoint(-2, 3))
+    print(find_sweep_intersection(edge, -1))
