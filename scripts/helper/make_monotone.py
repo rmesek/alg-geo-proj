@@ -68,6 +68,7 @@ class Edge:
 
         denom = y_1 - y_2
         if denom == 0:
+            return x_1
             raise RuntimeError(f"Could not find intersection between {edge} and {y=}")
             return None
         p_x = ((y_1 * x_2 - x_1 * y_2) + (x_1 - x_2) * y) / denom
