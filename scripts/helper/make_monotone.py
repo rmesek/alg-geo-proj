@@ -43,6 +43,15 @@ class Edge:
             return Edge.find_sweep_intersection(self, Edge.line_y) > __value
         return NotImplemented
 
+    def __lt__(self, __value: object) -> bool:
+        if Edge.line_y is None:
+            raise RuntimeError("Swipeline's value is not set!")
+        if isinstance(__value, Edge):
+            return Edge.find_sweep_intersection(self, Edge.line_y) < Edge.find_sweep_intersection(__value, Edge.line_y)
+        elif isinstance(__value, float | int):
+            return Edge.find_sweep_intersection(self, Edge.line_y) < __value
+        return NotImplemented
+
     @staticmethod
     def find_sweep_intersection(edge: Edge, y: float) -> float:
         """https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Given_two_points_on_each_line"""
@@ -79,7 +88,7 @@ class Edge:
 
 
 class ColorPoint(Point):
-    def __init__(self, x: float, y: float, type: PointType = PointType.UNKNOWN, source_edge=None, target_edge=None) -> None:
+    def __init__(self, x: float, y: float, type: PointType = PointType.UNKNOWN, source_edge: Edge | None = None, target_edge: Edge | None = None) -> None:
         super().__init__(x, y)
         self.type = type
         self.source_edge = source_edge
@@ -137,33 +146,164 @@ def make_monotone(polygon: list[tuple[float, float]]) -> deque[Edge]:
 
     while Q:
         color_point = heapq.heappop(Q)
-        # TODO: handle color_point
+        Edge.line_y = color_point.y
+        match color_point.type:
+            case PointType.STARTING:
+                handle_start_vertex(T, color_point)
+            case PointType.CLOSING:
+                handle_end_vertex(T, D, color_point)
+            case PointType.CONNECTIVE:
+                handle_merge_vertex(T, D, color_point)
+            case PointType.SEPARATIVE:
+                handle_split_vertex(T, D, color_point)
+            case PointType.CORRECT:
+                handle_regular_vertex(T, D, color_point)
+            case _:
+                raise RuntimeError(f"Cannot handle {color_point.type=}!")
 
     return D
 
 
+def handle_start_vertex(T: SortedList, color_point: ColorPoint) -> None:
+    edge = color_point.source_edge
+    if edge is None:
+        raise RuntimeError(f"Source edge for {color_point} was not set!")
+    T.add(edge)
+    edge.helper = color_point
+
+
+def handle_end_vertex(T: SortedList, D: deque[Edge], color_point: ColorPoint) -> None:
+    edge = color_point.target_edge
+    if edge is None:
+        raise RuntimeError(f"Target edge for {color_point} was not set!")
+    if edge.helper is None:  # TODO: Necessary?
+        raise RuntimeError(f"Helper for {edge} was not set!")
+
+    if edge.helper.type == PointType.CONNECTIVE:
+        print(f"New edge from {color_point} to {edge.helper}")
+        # TODO: Add to D
+    T.remove(edge)
+
+
+def handle_split_vertex(T: SortedList, D: deque[Edge], color_point: ColorPoint) -> None:
+    edge_index = T.bisect(color_point.y) - 1
+    if edge_index < 0 or edge_index > len(T) - 1:
+        raise RuntimeError(f"No edge to the left of {color_point}!")
+
+    edge: Edge = T[edge_index]  # type: ignore
+
+    print(f"New edge from {color_point} to {edge.helper}")
+    # TODO: Add to D
+
+    edge.helper = color_point
+
+    if color_point.source_edge is None:
+        raise RuntimeError(f"Source edge for {color_point} was not set!")
+
+    edge = color_point.source_edge
+    T.add(edge)
+    edge.helper = color_point
+
+
+def handle_merge_vertex(T: SortedList, D: deque[Edge], color_point: ColorPoint) -> None:
+    if color_point.target_edge is None:
+        raise RuntimeError(f"Target edge for {color_point} was not set!")
+    edge = color_point.target_edge
+    if edge.helper is None:  # TODO: Necessary?
+        raise RuntimeError(f"Helper for {edge} was not set!")
+
+    if edge.helper.type == PointType.CONNECTIVE:
+        print(f"New edge from {color_point} to {edge.helper}")
+        # TODO: Add to D
+
+    T.remove(edge)
+
+    edge_index = T.bisect(color_point.y) - 1
+    if edge_index < 0 or edge_index > len(T) - 1:
+        raise RuntimeError(f"No edge to the left of {color_point}!")
+
+    edge: Edge = T[edge_index]  # type: ignore
+
+    if edge.helper is None:  # TODO: Necessary?
+        raise RuntimeError(f"Helper for {edge} was not set!")
+
+    if edge.helper.type == PointType.CONNECTIVE:
+        print(f"New edge from {color_point} to {edge.helper}")
+        # TODO: Add to D
+
+    edge.helper = color_point
+
+
+def handle_regular_vertex(T: SortedList, D: deque[Edge], color_point: ColorPoint) -> None:
+    def polygon_to_the_right(color_point: ColorPoint) -> bool:
+        if color_point.target_edge is None:
+            raise RuntimeError(f"Target edge for {color_point} was not set!")
+        if color_point.source_edge is None:
+            raise RuntimeError(f"Source edge for {color_point} was not set!")
+
+        prev_color_point = color_point.target_edge.source
+        # next_color_point = color_point.source_edge.target
+        return prev_color_point.y > color_point.y
+
+    if polygon_to_the_right(color_point):
+        if color_point.target_edge is None:
+            raise RuntimeError(f"Target edge for {color_point} was not set!")
+        edge = color_point.target_edge
+        if edge.helper is None:
+            raise RuntimeError(f"Helper for {edge} was not set!")
+        if edge.helper.type == PointType.CONNECTIVE:
+            print(f"New edge from {color_point} to {edge.helper}")
+            # TODO: Add to D
+        T.remove(edge)
+        T.add(color_point.source_edge)
+        if color_point.source_edge is None:
+            raise RuntimeError(f"Source edge for {color_point} was not set!")
+        color_point.source_edge.helper = color_point
+    else:
+        edge_index = T.bisect(color_point.y) - 1
+        if edge_index < 0 or edge_index > len(T) - 1:
+            raise RuntimeError(f"No edge to the left of {color_point}!")
+        edge: Edge = T[edge_index]  # type: ignore
+        if edge.helper is None:
+            raise RuntimeError(f"Helper for {edge} was not set!")
+        if edge.helper.type == PointType.CONNECTIVE:
+            print(f"New edge from {color_point} to {edge.helper}")
+            # TODO: Add to D
+        edge.helper = color_point
+
+
 if __name__ == "__main__":
-    # polygon_example = [
-    #     (2, 0),
-    #     (5, 1),
-    #     (6, 0),
-    #     (8, 3),
-    #     (7, 2),
-    #     (8, 7),
-    #     (6, 9),
-    #     (5, 8),
-    #     (2, 9),
-    #     (1, 7),
-    #     (2, 4),
-    #     (4, 5),
-    #     (3, 6),
-    #     (5, 7),
-    #     (5.5, 3),
-    #     (2, 2),
-    #     (1, 3),
-    #     (0, 1),
-    # ]
-    polygon_example = [(0, 0), (1, 0), (0.5, 1)]
+    polygon_example = [
+        (2, 0),
+        (5, 1),
+        (6, 0),
+        (8, 3),
+        (7, 2),
+        (8, 7),
+        (6, 9),
+        (5, 8),
+        (2, 9),
+        (1, 7),
+        (2, 4),
+        (4, 5),
+        (3, 6),
+        (5, 7),
+        (5.5, 3),
+        (2, 2),
+        (1, 3),
+        (0, 1),
+    ]
+    # color_points = ColorPoint.color_points(Point.as_points(polygon_example))
+    # Edge.as_deque(color_points)
+    # print(color_points)
+    # for color_point in color_points:
+    #     if color_point.type == PointType.CORRECT:
+    #         print(color_point, polygon_to_the_right(color_point))
+    # print(polygon_to_the_right(color_points[-1]))  # TRUE
+    # print(polygon_to_the_right(color_points[0]))  # FALSE
+    # print(polygon_to_the_right(color_points[1]))  # TRUE
+
+    # polygon_example = [(0, 0), (1, 0), (0.5, 1)]
     # polygon_example_colors = [1, 3, 1, 0, 2, 4, 0, 2, 0, 4, 1, 4, 4, 3, 4, 2, 0, 4]
 
     # print(make_monotone(polygon_example))
@@ -174,6 +314,8 @@ if __name__ == "__main__":
     # sl.add(Edge(ColorPoint(-3, -1), ColorPoint(-2, 3)))
     # sl.add(Edge(ColorPoint(-1, 3), ColorPoint(2, -1)))
     # sl.add(Edge(ColorPoint(-1, 1), ColorPoint(1, -1)))
-    # print(sl[sl.bisect_right(1)])
+    # edge_index = sl.bisect(2) - 1
+    # print(edge_index)
+    # print(sl[edge_index])
     # print(edge > -2)
-    print(make_monotone(polygon_example))
+    make_monotone(polygon_example)
