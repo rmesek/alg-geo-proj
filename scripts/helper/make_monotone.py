@@ -49,7 +49,7 @@ class Edge:
         return NotImplemented
 
     @staticmethod
-    def find_sweep_intersection(edge: Edge, y: float) -> float:
+    def find_sweep_intersection(edge: Edge, y: float, eps: float = 10**-12) -> float:
         """https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Given_two_points_on_each_line"""
         x_1, y_1 = edge.source.as_tuple()
         x_2, y_2 = edge.target.as_tuple()
@@ -60,7 +60,7 @@ class Edge:
             return None
         p_x = ((y_1 * x_2 - x_1 * y_2) + (x_1 - x_2) * y) / denom
         # p_y = ((y_1 - y_2) * y) / denom
-        if not min(x_1, x_2) <= p_x <= max(x_1, x_2):
+        if not min(x_1, x_2) - eps <= p_x <= max(x_1, x_2) + eps:
             raise RuntimeError(f"Could not find intersection between {edge} and {y=}")
             return None
         return p_x
