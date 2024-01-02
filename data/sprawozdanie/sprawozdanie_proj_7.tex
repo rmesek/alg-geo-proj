@@ -1,0 +1,104 @@
+\documentclass[12pt]{article}
+
+% Ustawienia strony
+\usepackage{lipsum}
+\usepackage[margin=1.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{siunitx}
+\usepackage{amsmath}
+\usepackage{cancel}
+\usepackage{makecell}
+\usepackage{mathtools}
+\usepackage{floatrow}
+\usepackage{caption}
+\usepackage[T1]{fontenc}
+\usepackage{fancyvrb}
+\usepackage[ngerman]{babel}
+\usepackage{subcaption}
+\usepackage{graphicx}
+\usepackage{blindtext}
+\usepackage{hyperref}
+\usepackage[dvipsnames]{xcolor}
+
+\hypersetup{
+	colorlinks=true,
+	linkcolor=blue,
+	filecolor=magenta,      
+	urlcolor=cyan,
+	pdfpagemode=FullScreen,
+}
+
+\urlstyle{same}
+
+\fvset{tabsize=4}
+\setlist{leftmargin=15pt,labelindent=15pt}
+\setlist[enumerate]{noitemsep,wide=0pt, leftmargin=*}
+{\setlength{\parindent}{0pt}
+	
+	% Ustawienia stopki
+	\usepackage{lastpage}
+	\usepackage{fancyhdr}
+	\pagestyle{fancy}
+	\fancyhf{} % sets both header and footer to nothing
+	\renewcommand{\headrulewidth}{0pt}
+	\cfoot{\thepage\ z \pageref*{LastPage}}
+	
+\begin{document}
+
+\section*{Podstawowe dane}
+\begin{figure}[htp]
+    \begin{minipage}[t]{0.3\textwidth}
+        \textbf{Imie i nazwisko} \\
+        \\
+        \textbf{Data} \\
+        \textbf{Tytuł} \\
+        \textbf{Numer projektu}
+    \end{minipage}%
+    \begin{minipage}[t]{0.7\textwidth}
+        Wojciech Kaźmierczak \\
+        Robert Mesek \\
+        01.01.2024 \\
+        Projekt z Algorytmów Geometrycznych \\
+        7
+    \end{minipage}%
+\end{figure}
+
+\section*{Dane techniczne}
+\begin{figure}[htp]
+    \begin{minipage}[t]{0.3\textwidth}
+        \textbf{Procesor} \\
+        \textbf{Język} \\
+        \textbf{Biblioteki} \\
+        \\
+        \textbf{System operacyjny} \\
+        \textbf{Środowisko}
+
+    \end{minipage}%
+    \begin{minipage}[t]{0.7\textwidth}
+        Intel i7-1165G7 x86\_64 \\
+        Python 3.11.5 \\
+        numpy 1.25.2, pandas 2.0.3, matplotlib 3.7.2, \\
+        notebook 6.5.4, sortedcontainers 2.4.0 \\
+        WSL Ubuntu 22.04 (MS Windows 10 22H2) \\
+        conda 23.11.0
+    \end{minipage}%
+\end{figure}
+
+\section*{Opis projektu}
+Należy zaimplementować algorytmy konstrukcji triangulacji dla dowolnego wielokąta prostego dwoma metodami.
+W obu przypadkach triangulacja ma się opierać jedynie na wierzchołkach wielokąta (bez dodawania wierzchołków wewnątrz wielokąta).
+
+Pierwsza metoda to podział wielokąta na wielokąty monotoniczne (zgodnie z algorytmem podanym na wykładzie), a następnie triangulacja wynikłych z podziału wielokątów monotonicznych także metodą podaną na wykładzie (i realizowaną na ćwiczeniach).
+
+Drugi algorytm to triangulacja Delaunay’a z ograniczeniami (z procedurami odzyskania krawędzi i usunięcia trójkątów zewnętrznych). W tej metodzie wybrać odpowiedni sposób poszukiwania trójkąta w istniejącej triangulacji (i go omówić).
+
+\newpage
+
+\section*{Triangulacja polegająca na podziale wielokątów}
+
+\newpage
+
+\section*{Triangulacja Delaunay'a z ograniczeniami}
+
+\end{document}
