@@ -54,15 +54,15 @@ class Edge:
         x_1, y_1 = edge.source.as_tuple()
         x_2, y_2 = edge.target.as_tuple()
         denom = y_1 - y_2
-        if denom == 0:
+        if abs(denom) < eps:
             return x_1
             raise RuntimeError(f"Could not find intersection between {edge} and {y=}")
             return None
         p_x = ((y_1 * x_2 - x_1 * y_2) + (x_1 - x_2) * y) / denom
         # p_y = ((y_1 - y_2) * y) / denom
-        if not min(x_1, x_2) - eps <= p_x <= max(x_1, x_2) + eps:
-            raise RuntimeError(f"Could not find intersection between {edge} and {y=}")
-            return None
+        # if not min(x_1, x_2) - eps <= p_x <= max(x_1, x_2) + eps:
+        #     raise RuntimeError(f"Could not find intersection between {edge} and {y=}")
+        #     return None
         return p_x
 
     @staticmethod
@@ -89,7 +89,7 @@ class ColorPoint(Point):
         self.target_edge: Edge | None = None
 
     def __repr__(self) -> str:
-        return f"ColorPoint({self.type.name}: {self.x}, {self.y})"
+        return f"ColorPoint{self.id}({self.type.name}: {self.x}, {self.y})"
 
     def __gt__(self, other: object) -> bool:
         if not isinstance(other, Point):
@@ -101,13 +101,13 @@ class ColorPoint(Point):
     @staticmethod
     def classify(a: Point, b: Point, c: Point, eps=Point.EPSILON) -> PointType:
         # starting or separative or correct
-        if a.y < b.y and c.y < b.y:
+        if a.y < b.y + eps and c.y < b.y + eps:
             if Point.det(a, b, c) > eps:
                 return PointType.STARTING
             elif Point.det(a, b, c) < -eps:
                 return PointType.SEPARATIVE
         # closing or connective or correct
-        elif a.y > b.y and c.y > b.y:
+        elif a.y > b.y + eps and c.y > b.y + eps:
             if Point.det(a, b, c) > eps:
                 return PointType.CLOSING
             elif Point.det(a, b, c) < -eps:
@@ -153,8 +153,8 @@ def make_monotone(polygon: list[tuple[float, float]]) -> tuple[list[Edge], list[
 
     def handle_split_vertex(T: SortedList, D: list[Edge], color_point: ColorPoint) -> None:
         edge_index = T.bisect(color_point.y) - 1
-        if edge_index < 0 or edge_index > len(T) - 1:
-            raise RuntimeError(f"No edge to the left of {color_point}!")
+        # if edge_index < 0 or edge_index > len(T) - 1:
+        #     raise RuntimeError(f"No edge to the left of {color_point}!")
         edge: Edge = T[edge_index]  # type: ignore
         if edge.helper is None:
             raise RuntimeError(f"Helper for {edge} was not set!")
@@ -176,8 +176,8 @@ def make_monotone(polygon: list[tuple[float, float]]) -> tuple[list[Edge], list[
             add_edge(D, color_point, edge.helper)
         T.remove(edge)
         edge_index = T.bisect(color_point.y) - 1
-        if edge_index < 0 or edge_index > len(T) - 1:
-            raise RuntimeError(f"No edge to the left of {color_point}!")
+        # if edge_index < 0 or edge_index > len(T) - 1:
+        #     raise RuntimeError(f"No edge to the left of {color_point}!")
         edge: Edge = T[edge_index]  # type: ignore
         if edge.helper is None:
             raise RuntimeError(f"Helper for {edge} was not set!")
@@ -210,8 +210,8 @@ def make_monotone(polygon: list[tuple[float, float]]) -> tuple[list[Edge], list[
             color_point.source_edge.helper = color_point
         else:
             edge_index = T.bisect(color_point.y) - 1
-            if edge_index < 0 or edge_index > len(T) - 1:
-                raise RuntimeError(f"No edge to the left of {color_point}!")
+            # if edge_index < 0 or edge_index > len(T) - 1:
+            #     raise RuntimeError(f"No edge to the left of {color_point}!")
             edge: Edge = T[edge_index]  # type: ignore
             if edge.helper is None:
                 raise RuntimeError(f"Helper for {edge} was not set!")
