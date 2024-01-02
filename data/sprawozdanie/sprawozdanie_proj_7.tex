@@ -48,41 +48,41 @@
 
 \section*{Podstawowe dane}
 \begin{figure}[htp]
-    \begin{minipage}[t]{0.3\textwidth}
-        \textbf{Imie i nazwisko} \\
-        \\
-        \textbf{Data} \\
-        \textbf{Tytuł} \\
-        \textbf{Numer projektu}
-    \end{minipage}%
-    \begin{minipage}[t]{0.7\textwidth}
-        Wojciech Kaźmierczak \\
-        Robert Mesek \\
-        01.01.2024 \\
-        Projekt z Algorytmów Geometrycznych \\
-        7
-    \end{minipage}%
+	\begin{minipage}[t]{0.3\textwidth}
+		\textbf{Imie i nazwisko} \\
+		\\
+		\textbf{Data} \\
+		\textbf{Tytuł} \\
+		\textbf{Numer projektu}
+	\end{minipage}%
+	\begin{minipage}[t]{0.7\textwidth}
+		Wojciech Kaźmierczak \\
+		Robert Mesek \\
+		01.01.2024 \\
+		Projekt z Algorytmów Geometrycznych \\
+		7
+	\end{minipage}%
 \end{figure}
 
 \section*{Dane techniczne}
 \begin{figure}[htp]
-    \begin{minipage}[t]{0.3\textwidth}
-        \textbf{Procesor} \\
-        \textbf{Język} \\
-        \textbf{Biblioteki} \\
-        \\
-        \textbf{System operacyjny} \\
-        \textbf{Środowisko}
+	\begin{minipage}[t]{0.3\textwidth}
+		\textbf{Procesor} \\
+		\textbf{Język} \\
+		\textbf{Biblioteki} \\
+		\\
+		\textbf{System operacyjny} \\
+		\textbf{Środowisko}
 
-    \end{minipage}%
-    \begin{minipage}[t]{0.7\textwidth}
-        Intel i7-1165G7 x86\_64 \\
-        Python 3.11.5 \\
-        numpy 1.25.2, pandas 2.0.3, matplotlib 3.7.2, \\
-        notebook 6.5.4, sortedcontainers 2.4.0 \\
-        WSL Ubuntu 22.04 (MS Windows 10 22H2) \\
-        conda 23.11.0
-    \end{minipage}%
+	\end{minipage}%
+	\begin{minipage}[t]{0.7\textwidth}
+		Intel i7-1165G7 x86\_64 \\
+		Python 3.11.5 \\
+		numpy 1.25.2, pandas 2.0.3, matplotlib 3.7.2, \\
+		notebook 6.5.4, sortedcontainers 2.4.0 \\
+		WSL Ubuntu 22.04 (MS Windows 10 22H2) \\
+		conda 23.11.0
+	\end{minipage}%
 \end{figure}
 
 \section*{Opis projektu}
@@ -96,9 +96,224 @@ Drugi algorytm to triangulacja Delaunay’a z ograniczeniami (z procedurami odzy
 \newpage
 
 \section*{Triangulacja polegająca na podziale wielokątów}
+\subsection*{Idea algorytmu}
+\par
+Celem algorytmu jest znalezienie triangulacji dowolnego wielokąta prostego. Aby to osiągnąć w tym sposobie musimy przeprowadzić kilka kroków:
+\begin{enumerate}
+	\item Klasyfikacja wierzchołków danego wielokąta.
+	\item Podział wielokąta na wielokąty monotoniczne.
+	\item Triangulacja wielokątów monotonicznych.
+\end{enumerate}
+
+\subsection*{Wielokąt na którym przedstawimy ideę}
+\begin{figure}[htp]
+	\centering
+	\includegraphics[width=0.5\linewidth]{../results/w0.png}
+	\caption*{Rys. 1: Przykładowy wielokąt prosty.}
+\end{figure}
+
+\subsection*{1. Klasyfikacja wierzchołków danego wielokąta}
+\subsubsection*{Typu wierzchołków}
+Wierzchołki naszego wielokąta możemy podzielić na parę kategorii:
+
+- początkowe, gdy obaj jego sąsiedzi leżą poniżej i kąt wewnętrzny ma mniej niż 180 stopni. To wierzchołki, w których zaczyna się monotoniczny spadek
+
+- końcowe, gdy obaj jego sąsiedzi leżą powyżej i kąt wewnętrzny ma mniej niż 180 stopni. To wierzchołki, w których monotoniczność wielokąta się zmienia, czyli na przykład zaczyna się monotoniczny wzrost, jeśli wcześniej był spadek, lub na odwrót.
+
+- dzielące, gdy obaj jego sąsiedzi leżą poniżej i kąt wewnętrzny ma więcej niż 180 stopni. To wierzchołki, które wyznaczają przekątne (linie łączące), tworzące trójkąty podczas triangulacji.
+
+- łączące, gdy obaj jego sąsiedzi leżą powyżej i kąt wewnętrzny ma więcej niż 180 stopni. To wierzchołki, które są połączone liniami (przekątnymi) wewnątrz wielokąta, tworząc trójkąty.
+
+- prawidłowe, pozostałe przypadki, jeden sąsiad powyżej, drugi poniżej
+\newline\newline
+Wierzchołki łączące i dzielące odgrywają kluczową rolę w procesie triangulacji wielokątów, pozwalając na podział figury na trójkąty w sposób bezkolizyjny.
+
+\newpage
+
+\subsubsection*{Oznaczenia wierzchołków kolorami}
+\begin{itemize}
+	\item Początkowy - \color{ForestGreen}kolor zielony\color{black}
+	\item Końcowy - \color{red}kolor czerwony\color{black}
+	\item Łączący - \color{blue}kolor niebieski\color{black}
+	\item Dzielący - \color{cyan}kolor cyjan\color{black}
+	\item Prawidłowy - \color{Sepia}kolor brązowy\color{black}
+\end{itemize}
+
+\subsubsection*{Rezultat kolorowania}
+\begin{figure}[htp]
+	\centering
+	\includegraphics[width=0.5\linewidth]{img/color-w0.png}
+	\caption*{Rys. 2: Przykładowy wielokąt po klasyfikacji.}
+\end{figure}
+
+\subsubsection*{Wykorzystane funkcje}
+\verb|classify(a: Point, b: Point, c: Point, eps) -> PointType|
+
+Zwraca typ punktu, wykorzystując własność wyznacznika macierzy liczonego ze wzoru:
+
+\verb|det = (a.x - c.x) * (b.y - c.y) - (a.y - c.y) * (b.x - c.x)|
+
+\newpage
+
+\subsection*{2. Podział wielokąta na wielokąty monotoniczne}
+\subsubsection*{Konwersja wielokąta na podwójnie łączoną listę krawędzi}
+Dla naszego algorytmu pomocne jest sporządzenie struktury, w której będziemy mieli możliwość szybkiego dostępu do elementów wielokąta takich jak: kolejne krawędzie wraz z punktem będącym jej pomocnikiem, punkty z informacją do jakiej krawędzi należą.
+
+\subsubsection*{Rozwiązanie będzie korzystać z algorytmu zamiatania}
+W tym celu będziemy potrzebować 2 pomocniczych struktur danych:
+\begin{itemize}
+	\item Q - struktura zdarzeń - kolejka priorytetowa - są to nasze punkty, gdzie największy priorytet ma górny lewy punkt
+	\item T - struktura stanu - dynamiczne drzewo wyszukań binarnych - są to krawędzie posortowane od lewej strony do prawej w miejscu przecięć z miotłą
+\end{itemize}
+
+\subsubsection*{Przebieg algorytmu}
+Kolejne punkty z kolejki priorytetowej Q będziemy przetwarzać w sposób zależny od typu danego punktu.
+Głównym celem jest wyeliminowanie wierzchołków łączących oraz dzielących. Wielokąt y-monotoniczny to takich, który właśnie nie posiada żadnych wierzchołków tego typu.
+
+W tym celu dla każdego wierzchołka dzielącego dodajemy przekątne wychodzące w górę, a dla każdego wierzchołka łączącego wychodzące w dół. Przekątne te mają nie przecinać żadnej innej przekątnej.
+
+Będziemy starali się znaleźć wierzchołki znajdujące się w pobliżu rozpatrywanego aktualnie wierzchołka $v_i$. Aby szybko znajdywać taki wierzchołek dla $v_i$ dzielącego zauważmy,
+że będzie on najniższym wierzchołkiem leżącym pomiędzy prostą $e_l$ będącą bezpośrednio na lewo od $v_i$ oraz $e_p$ będącą bezpośrednio po prawej stronie.
+Wierzchołek ten nazwiemy pomocnikiem($v_i$), zauważmy, że może on być górnym końcem samej $e_l$.
+
+Pozostają jeszcze wierzchołki $v_i$ łączące. Potrzebować one będą wierzchołków znajdujących się pod miotłą (jeszcze nie przetworzonych), ale będzie to dokładnie odwrócona sytuacja dla wierzchołka dzielącego. Za pomocnika($v_i$), będziemy wybierać wierzchołek leżący pomiędzy $e_l$ a $e_p$, znajdujący się najbliżej.
+
+\subsection*{Dowód poprawności oraz wyprowadzenie}
+Dowód poprawności oraz szczegóły wyprowadzenia algorytmu znajdziemy w książce
+
+[1] "Geometria obliczeniowa. Algorytmy i zastosowania" \quad M. Berg
+
+\newpage
+
+\subsubsection*{Rezultat podziału}
+\begin{figure}[htp]
+	\centering
+	\includegraphics[width=0.5\linewidth]{img/diag-w0.png}
+	\caption*{Rys. 3: Przykładowy wielokąt po podziale.}
+\end{figure}
+
+\subsubsection*{Wykorzystane funkcje}
+\verb|make_monotone(polygon) -> tuple[list[Edge], list[Edge]]|
+
+Główna funkcja wykonująca algorytm zamiatania. Przyjmuję ona wielokąt w postaci listy kolejnych punktów w kierunku przeciwnym do ruchu wskazówek zegara. Zwraca ona listę krawędzi wielokąta oraz listę nowo dodanych wierzchołków.
+\mbox{}\newline
+
+\verb|handle_start_vertex(T: SortedList, color_point: ColorPoint)|
+
+Funkcja przetwarzająca wierzchołki początkowe.
+\mbox{}\newline
+
+\verb|handle_end_vertex(T: SortedList, D: list[Edge], color_point: ColorPoint)|
+
+Funkcja przetwarzająca wierzchołki końcowe.
+\mbox{}\newline
+
+\verb|handle_split_vertex(T: SortedList, D: list[Edge], color_point: ColorPoint)|
+
+Funkcja przetwarzająca wierzchołki dzielące.
+\mbox{}\newline
+
+\verb|handle_merge_vertex(T: SortedList, D: list[Edge], color_point: ColorPoint)|
+
+Funkcja przetwarzająca wierzchołki łączące.
+\mbox{}\newline
+
+\verb|handle_regular_vertex(T: SortedList, D: list[Edge], color_point: ColorPoint)|
+
+Funkcja przetwarzająca wierzchołki prawidłowe.
+\mbox{}\newline
+
+\verb|get_points_and_diagonals(polygon: list[tuple[float, float]])|
+
+Pomocnicza funkcja przetwarzająca wynik działania \verb|make_monotone()| na listę współrzędnych punktów oraz krawędzi w postaci indeksów, które w punkty należy połączyć w liście współrzędnych.
+\mbox{}\newline
+
+
+\newpage
+
+\subsection*{3. Triangulacja wielokątów monotonicznych}
+\subsubsection*{Konwersja punktów i przekątnych na poszczególne wielokąty y-monotoniczne}
+Sporządzimy listę punktów, jako strukturę gdzie każdy punkt posiada zbiór innych punktów z których możemy do niego dotrzeć na podstawia otrzymanych przekątnych.
+
+Posłużymy się następnie lekko zmodyfikowanym algorytmem przeszukiwania wzdłuż. Dla każdego punktu będziemy szukać ścieżek w których wracamy do punktu startu. Jedyne na co musimy uważać, to aby od razu nie wrócić się do tego samego punktu. Po znalezieniu takiej ścieżki usuwamy połączenia ze struktury i próbujemy dla kolejnego punktu.
+
+\subsubsection*{Triangulacja kolejnych wielokątów y-monotonicznych}
+\begin{itemize}
+	\item Określamy lewy i prawy łańcuch wielokąta względem kierunku monotoniczności
+	\item Porządkujemy wierzchołki wzdłuż kierunku monotoniczności
+	\item Wkładamy dwa pierwsze wierzchołki na stos.
+	\item Jeśli kolejny wierzchołek należy do innego łańcucha niż wierzchołek stanowiący szczyt stosu,to możemy go połączyć ze wszystkimi wierzchołkami na stosie. Na stosie zostają dwa wierzchołki, które były „zamiatane” ostatnie.
+	\item Jeśli kolejny wierzchołek należy do tego samego łańcucha co wierzchołek ze szczytu stosu, to analizujemy kolejne trójkąty, jakie tworzy dany wierzchołek z wierzchołkami zdejmowanymi ze stosu:
+	      \begin{itemize}
+		      \item Jeśli trójkąt należy do wielokąta, to dodajemy przekątną i usuwamy odpowiedni wierzchołek ze szczytu stosu
+		      \item w przeciwnym przypadku umieszczamy badane wierzchołki na stosie.
+	      \end{itemize}
+\end{itemize}
+
+\subsubsection*{Rezultat triangulacji}
+\begin{figure}[htp]
+	\centering
+	\includegraphics[width=0.5\linewidth]{../results/p0.png}
+	\caption*{Rys. 4: Przykładowy wielokąt po triangulacji.}
+\end{figure}
+
+\newpage
+
+\subsubsection*{Wykorzystane funkcje}
+\verb|triangulate_y_monotone(polygon: list[tuple[float, float]])|
+
+Główna funkcja, która dla znalezionego wielokąta y-monotonicznego znajdzie zwróci jego przekątne, które należy dodać w postaci współrzędnych końców przekątnych.
+\mbox{}\newline
+
+\verb|find_chains(points: list[Point]) -> tuple[set[int], set[int]]|
+
+Funkcja tworząca łańcuch lewy i prawy.
+\mbox{}\newline
+
+\verb|triangle_in_polygon(chain: set[int], a: Point, b: Point, c: Point)|
+
+Funkcja sprawdzająca czy trójkąt znajduje się wewnątrz wielokąta, korzysta z wyznacznika macierzy.
+\mbox{}\newline
+
+\verb|check_same_chains(left_chain: set[int], right_chain: set[int], p1: Point, p2: Point)|
+
+Funkcja sprawdzająca czy dwa punkty znajdują się na tych samych czy różnych łańcuchach.
+\mbox{}\newline
+
+\verb|check_neighbours(points: list[Point], a: Point, b: Point)|
+
+Funkcja sprawdzająca czy punkty są dla siebie sąsiadami.
+\mbox{}\newline
+
+\subsection*{Kompletny algorytm}
+\subsubsection*{Dane wejściowe}
+Wielokąt prosty zadany w postaci punktów w kierunku przeciwnym do wskazówek zegara.
+
+\subsubsection*{Rezultat}
+Triangulacja wielokąta prostego w postaci przekątnych, które należy dołożyć.
+
+\subsubsection*{Złożoność czasowa}
+Podział wielokąta o \verb|n| wierzchołkach na wielokąty y-monotoniczne: czas \verb|O(n*log(n))|, pamięć \verb|O(n)|
+
+Triangulacja y-monotonicznego wielokąta o \verb|n| wierzchołkach \verb|O(n)|
+\mbox{}\newline
+
+Złożoność czasowa kompletnego algorytmu dla \verb|n| wierzchołków: \verb|O(n*log(n))|
+
+Złożoność pamięciowa kompletnego algorytmu dla \verb|n| wierzchołków: \verb|O(n)|
+
+
+\subsection*{Bibliografia}
+[1] \quad "Geometria obliczeniowa. Algorytmy i zastosowania" \quad M. Berg M. Kreveld M. Overmars
+
+\quad\quad ISBN: \verb|9788320432442| WNT Warszawa 2007
 
 \newpage
 
 \section*{Triangulacja Delaunay'a z ograniczeniami}
+
+\newpage
+
+\section*{Porównanie algorytmów}
 
 \end{document}
