@@ -19,6 +19,7 @@
 \usepackage{graphicx}
 \usepackage{blindtext}
 \usepackage{hyperref}
+\usepackage{enumitem}
 \usepackage[dvipsnames]{xcolor}
 
 \hypersetup{
@@ -56,8 +57,8 @@
 		\textbf{Numer projektu}
 	\end{minipage}%
 	\begin{minipage}[t]{0.7\textwidth}
+				Robert Mesek \\
 		Wojciech Kaźmierczak \\
-		Robert Mesek \\
 		02.01.2024 \\
 		Projekt z Algorytmów Geometrycznych \\
 		7
@@ -311,6 +312,138 @@ Złożoność pamięciowa kompletnego algorytmu dla \verb|n| wierzchołków: \ve
 \newpage
 
 \section*{Triangulacja Delaunay'a z ograniczeniami}
+\subsection*{Program}
+Ścieżka do programu to: \verb|scripts/helper/triangulate_delaunay.py|
+\subsection*{Zaimportowane biblioteki}
+\begin{itemize}[noitemsep]
+	\item functools
+	\item math
+	\item operator
+	\item matplotlib
+	\item queue
+	\item \verb|Visualizer()| z pliku \verb|./scripts/visualizer/main|
+\end{itemize}
+
+\subsection*{Użyte struktury}
+Point (reprezentuje punkt w $R^2$):
+\begin{itemize}[noitemsep]
+	\item x – współrzędna x 
+	\item y – współrzędna y
+	\item edges – zbiór półkrawędzi, których początkiem jest dany punkt
+\end{itemize}
+
+\mbox{}\newline
+Half\_Edge (reprezentuje półkrawędź):
+\begin{itemize}[noitemsep]
+	\item origin – wierzchołek początkowy (obiekt klasy Point)
+	\item next – następnik (obiekt klasy Half\_Edge)
+	\item prev – poprzednik (obiekt klasy Half\_Edge)
+	\item face – ściana, której jest częścią
+	\item twin – półkrawędź leżąca na tej samej krawędzi lecz skierowana przeciwnie
+\end{itemize}
+
+\mbox{}\newline
+Triangle (reprezentuje trójkąt, ścianę siatki):
+\begin{itemize}[noitemsep]
+	\item edges – zbiór krawędzi (typ Half\_Edges), którymi jest otoczony, skierowane przeciwnie do ruchu wskazówek zegara
+	\item visited – pole do oznaczenia, iż dany trójkąt został już odwiedzony w danej iteracji
+\end{itemize}
+
+\subsubsection*{Delaunay (klasa reprezentująca triangulację Delaunay’a):}
+\begin{itemize}[noitemsep]
+	\item triangulation\_faces – przechowuje zbiór obiektów Triangle będących częścią obecnej triangulacji ruchu wskazówek zegara
+	\item Points – tablica obiektów Point przechowująca punkty wielokąta
+	\item middle – środkowy punkt trójkąta zawierającego wszystkie punkty zbioru
+	\item starting\_points – tablica punktów startowych, będących wierzchołkami trójkąta zawierającego wszystkie punkty zbioru
+	\item middle\_triangle – obiekt typu Triangle reprezentujący trójkąt znajdujący się na środku (trójkąt zawierający punkt środkowy)
+\end{itemize}
+
+\newpage
+
+Klasy Point, Half\_Edge oraz Triangle posiadają zdefiniowane metody \_\_hash\_\_, \_\_eq\_\_, oraz funkcje zwracającą daną strukturę kolejno: jako krotkę współrzędnych; krotkę punktów reprezentowanych jako krotki współrzędnych; krotkę półkrawędzi reprezentowanych w sposób opisany wyżej.
+
+\subsubsection*{Funkcje nie zawarte w żadnej z klas:}
+orient(Half\_Edge, Point) funkcja zwraca liczbę, jeśli jest ona dodatnia to punkt przyjęty w argumentach leży po lewej stronie półkrawędzi (przyjętej w argumentach), jeśli ujemna to po prawej, a zero na linii zawierającej daną półkrawędź zwraca liczba wyliczana jest na podstawie wyznacznika:
+
+\begin{equation*}
+	\text{orient}(\text{Half\_Edge e, Point p}) = \begin{vmatrix}
+		e.origin.x & e.origin.y & 1 \\ 
+		e.twin.origin.x & e.twin.origin.y &  1\\ 
+		p.x & p.y & 1 
+	\end{vmatrix}
+\end{equation*}
+
+is\_point\_circumcircle(Triangle, Point) – zwraca wartość bool jeśli dany punkt zawiera się w trójkącie opisanym na trójkącie
+\\ \\
+circumcircle(Triangle) – zwraca współrzędne środka okręgu opisanego na trójkącie i jego promień
+\\ \\
+create\_edge(Point p1, Point p2, True/False) – tworzy krawędź, gdy wartość True to dodaje do zbiorów krawędzi której dany punkt jest częścią jeśli False to nie
+\\ \\
+connect\_edge(Half\_Edge first, Half\_Edge scnd) – łączy półkrawędzie ustawiając ich next i prev
+\\ \\
+vis\_triangulation() – funkcja tworząca wizualizację triangulacji
+\\ \\
+draw\_polygon\_by\_clicking() – pozwala na wprowadzenie wielokąta myszką
+\\ \\
+if\_point\_in\_triangle(Triangle, Point) – sprawdza czy dla każdej półkrawędzi trójkąta punkt leży po lewej stronie, jeśli tak zwraca True jeśli nie False
+\\ \\
+get\_intersecting\_edge(Triangle, Point p, Point p\_next) – jeśli jakaś krawędż danego trójkąta przecina się z krawędzią p, p\_next to zwraca tą krawędź, do orzeczenia czy się przecinają używa funkcji orient, dla danej półkrawędzi końce drugiego odcinka muszą leżeć po jej obu stronach(jeden po tej drugi po tej) analogicznie zamieniając role odcinków (półkrawędzi).
+
+\newpage
+
+\subsubsection*{Funkcje klasy Delauney:}
+
+get\_super\_triangle() – przyjmuje tablicę punktów na jej podstawie wylicza współrzędne wierzchołków trójkąta zawierającego wszystkie punkty ze zbioru oblicza max\_x, max\_y, min\_x, min\_y, będące minimalnymi/maksymalnymi współrzędnymi x/y na ich podstawie oblicza współrzędne środka ((max\_x+min\_x)/2, (max\_y+min\_y)/2) oraz delte będąca maksymalną różnicą z różnic max\_x-min\_y oraz max\_y-min\_y, współrzędne punktów będący wierzchołkami „super trójkąta” to (mid\_x-2*delta, mid\_y-delta), (mid\_x, mid\_y+2*delta) oraz (mid\_x+2*delta, mid\_y-delta) mamy wtedy pewność że wszystkie punkty zbioru zawierają się w tym trójkącie.
+\\ \\ 
+create\_triangle() – tworzy Triangle na podstawie wczytanych obiektów typu Half\_Edges
+\\ \\ 
+update\_triangle() – funkcja odpowiedzielna za wyszukanie trójkątów które w swoich okręgach opisanych zawierają dany punkt, odbywa się to za pomocą algorytmu BFS
+\\ \\ 
+execute\_triangulation\_update() - usuwa trójkąty wyszukane w update\_triangle()
+\\ \\ 
+get\_triangle\_in\_which\_the\_point\_is(Point) - zwraca trójkąt, w którym zawiera się punkt. Zaczyna od trójkąta środkowego i sprawdza czy jest w nim punkt za pomocą funkcji orient jeśli tak zwraca dany trójkąt,  jeśli orient zwrócił liczbę ujemną to przechodzi do trójkąta sąsiadującego właśnie tą krawędzią i szuka w nim itd.
+\\ \\ 
+add\_point() – funkcja dodająca punkt wywołuje get\_triangle\_in\_which\_the\_point\_is(), update\_triangle() , execute\_triangulation\_update() po czym tworzy nową triangulację na obszarze który został zakwalifikowany do zmiany i z którego usunięto krawędzie, następuje przepięcie wskaźników.
+\\ \\ 
+add\_points() – to funkcja, która dla każdego punktu (wierzchołka wieloboku) wykonuje funkcję add\_point()
+\\ \\ 
+recover\_the\_edges() – funkcja odpowiedzialna za zmianę istniejącej triangulacji tak by zawierała krawędzie wieloboku, w tym celu dla każdej krawędzi wieloboku sprawdza czy znajduje się ona w triangulacji jeśli nie to przesuwając wirtualnie punkt o drobny odcinek w celu uniknięcia złego wyboru trójkąta w którym się znajduje wykonuje funkcję get\_intersecting\_edge() i modyfikuje triangulacje by ta zawierała krawędź wielokąta oraz pozostała triangulacją
+\\ \\ 
+delete\_triangles\_not\_in\_polygon() – przyjmując jako pierwotny trójkąt którego częścią jest półkrawędź od pierwszego do drugiego punktu z tablicy punktów wieloboku (mamy pewność, że ten trójkąt zawiera się w wieloboku, bo krawędzie trójkątów są zorientowane przeciwnie do wskazówek zegara tak jak kolejność punktów w tablicy wierzchołków wieloboku) po czym za pomocą algorytmu BFS przechodzimy po sąsiadach danego trójkąta dodając je do kolejki tylko, wtedy gdy między trójkątem pierwotnym, a sąsiadem nie ma krawędzi wieloboku( w ten sposób poruszamy się ciągle wewnątrz wieloboku. Wszystkie odwiedzone krawędzie są częścią ostatecznej triangulacji, zatem wszystkie inne zostają usunięte.
+\\ \\ 
+get\_delaunay\_triangulation() wywołuje po kolei funkcje add\_points() w celu utworzenie wstępnej triangulacji, recover\_the\_edges() w celu uzgodnienia krawędzi, oraz delete\_triangles\_not\_in\_polygon() w celu usunięcia zbędnych trójkątów.
+\\ \\ 
+
+\newpage
+
+\subsection*{Użytkownik}
+Ścieżka do programu to: \verb|scripts/helper/triangulate_delaunay.py|
+\\ \\
+Aby program zwrócił triangulację Delaunay’a należy podać listę krotek reprezentujących wierzchołki wielokąta podane w kolejności przeciwnej do ruchu wskazówek zegara. Inicjalizujemy triangulacje tworząc obiekt Delaunay(lista\_wierzchołków) po czym na tym obiekcie wykonujemy get\_delaunay\_triangulation(True jeśli z wizualizacją False wpp)
+
+\subsection*{Opis problemu}
+Triangulacja Delaunaya wielokąta prostego to przypadek triangulacji Delaunaya  z ograniczeniami.
+\\ \\ 
+Oznacza to założenia:
+\begin{itemize}[noitemsep]
+	\item Nie można usunąć ani dodać wierzchołka, jeśli chcemy dokonać zmiany trzeba uruchomić program od początku.
+	\item Każda krawędź z wejściowego wielokąta musi być reprezentowana w końcowej triangulacji.
+	\item Poprzez ograniczenia czasami może nie zostać spełniony warunek nie zachodzenia na siebie obcych punktów do okręgu trójkąta, jednak ze względu na drugie ograniczenie nie dodawania nowych punktów nie powinno generować to błędów
+\end{itemize}
+
+\subsection*{Trzy podstawowe etapy algorytmu}
+\subsubsection*{WSTĘPNA TRIANGULACJA}
+Algorytm tworzenia wstępnej triangulacji działa na bazie rekurencyjnej:
+\begin{itemize}[noitemsep]
+	\item Mając triangulację n-elementową, dokładamy punkt P tworząc triangulacje n+1 elementową poprzez znalezienie wszystkich trójkątów, których okrąg opisany zawiera dodawany punkt. Następnie każdy z tych trójkątów zostaje usunięty po czym dodany punkt jest łączony z wszystkimi wierzchołkami mini wieloboku który powstał z usunięcia błędnych ścian siatki triangulacji.
+	\item Aby algorytm za każdym razem miał pełną triangulację na początku, stworzone są tymczasowe wierzchołki zewnętrzne, które okrywają dużym trójkątem cały wielokąt. Na końcu zostają one usunięte, na etapie usuwanie trójkątów.
+\end{itemize}
+
+\subsubsection*{ODZYSKIWANIE KRAWĘDZI}
+Następnie przystępujemy do odzyskania krawędzi, poprzez zamienianie przekątnych w parach trójkątów, których obecne przekątne przecinają pierwotne boki wielokąta.
+
+\subsubsection*{USUWANIE TRÓJKĄTÓW ZEWNĘTRZNYCH}
+Końcowym etapem jest usunięcie wszystkich trójkątów niezawierających się w danym wielokącie.
 
 \newpage
 
