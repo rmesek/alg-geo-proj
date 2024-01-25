@@ -7,11 +7,11 @@ from scripts.helper.utils import Point
 
 class PointType(Enum):
     UNKNOWN = -1
-    STARTING = 0
-    CLOSING = 1
-    CONNECTIVE = 2
-    SEPARATIVE = 3
-    CORRECT = 4
+    START = 0
+    END = 1
+    MERGE = 2
+    SPLIT = 3
+    REGULAR = 4
 
 
 class Edge:
@@ -54,13 +54,13 @@ class Edge:
         x_1, y_1 = edge.source.as_tuple()
         x_2, y_2 = edge.target.as_tuple()
         denom = y_1 - y_2
-        if abs(denom) < eps:
+        if denom == 0:
             return x_1
             raise RuntimeError(f"Could not find intersection between {edge} and {y=}")
             return None
         p_x = ((y_1 * x_2 - x_1 * y_2) + (x_1 - x_2) * y) / denom
         # p_y = ((y_1 - y_2) * y) / denom
-        # if not min(x_1, x_2) - eps <= p_x <= max(x_1, x_2) + eps:
+        # if not min(x_1, x_2) <= p_x <= max(x_1, x_2):
         #     raise RuntimeError(f"Could not find intersection between {edge} and {y=}")
         #     return None
         return p_x
@@ -103,17 +103,17 @@ class ColorPoint(Point):
         # starting or separative or correct
         if a.y < b.y + eps and c.y < b.y + eps:
             if Point.det(a, b, c) > eps:
-                return PointType.STARTING
+                return PointType.START
             elif Point.det(a, b, c) < -eps:
-                return PointType.SEPARATIVE
+                return PointType.SPLIT
         # closing or connective or correct
-        elif a.y > b.y + eps and c.y > b.y + eps:
+        elif a.y > b.y and c.y > b.y:
             if Point.det(a, b, c) > eps:
-                return PointType.CLOSING
+                return PointType.END
             elif Point.det(a, b, c) < -eps:
-                return PointType.CONNECTIVE
+                return PointType.MERGE
         else:
-            return PointType.CORRECT
+            return PointType.REGULAR
         raise RuntimeError(f"Cannot classify {a, b, c}!")
 
     @staticmethod
@@ -131,14 +131,45 @@ class ColorPoint(Point):
 
 def make_monotone(polygon: list[tuple[float, float]]) -> tuple[list[Edge], list[Edge]]:
     def add_edge(D: list[Edge], source: ColorPoint, target: ColorPoint) -> None:
+        # print(f"New edge {source} -> {target}.")
         edge = Edge(source, target)
         D.append(edge)
+
+    # def T_remove(T: SortedList, edge: Edge) -> None:
+    #     T.remove(edge)
+
+    # def T_add(T: SortedList, edge: Edge) -> None:
+    #     T.add(edge)
+
+    # def edge_on_left(color_point: ColorPoint) -> Edge:
+    #     edge_index = T.bisect(color_point.y) - 1
+    #     if edge_index < 0 or edge_index > len(T) - 1:
+    #         raise RuntimeError(f"No edge to the left of {color_point}!")
+    #     return T[edge_index]  # type: ignore
+
+    def edge_on_left(color_point: ColorPoint) -> Edge:
+        left_edge: Edge | None = None
+        for edge in T:
+            edge_min_y = min(edge.source.y, edge.target.y)
+            edge_max_y = max(edge.source.y, edge.target.y)
+            if (edge_min_y <= color_point.y <= edge_max_y) and (left_edge is None or Edge.find_sweep_intersection(edge, color_point.y) <= Edge.find_sweep_intersection(left_edge, color_point.y)):
+                left_edge = edge
+
+        if left_edge is None:
+            raise RuntimeError(f"No edge to the left of {color_point}!")
+        return left_edge
+    
+    def T_remove(T: SortedList, edge: Edge) -> None:
+        T.discard(edge)  # Problems with finding left edge!
+
+    def T_add(T: SortedList, edge: Edge) -> None:
+        T.add(edge)
 
     def handle_start_vertex(T: SortedList, color_point: ColorPoint) -> None:
         edge = color_point.source_edge
         if edge is None:
             raise RuntimeError(f"Source edge for {color_point} was not set!")
-        T.add(edge)
+        T_add(T, edge)
         edge.helper = color_point
 
     def handle_end_vertex(T: SortedList, D: list[Edge], color_point: ColorPoint) -> None:
@@ -147,15 +178,13 @@ def make_monotone(polygon: list[tuple[float, float]]) -> tuple[list[Edge], list[
             raise RuntimeError(f"Target edge for {color_point} was not set!")
         if edge.helper is None:
             raise RuntimeError(f"Helper for {edge} was not set!")
-        if edge.helper.type == PointType.CONNECTIVE:
+        if edge.helper.type == PointType.MERGE:
             add_edge(D, color_point, edge.helper)
-        T.remove(edge)
+        T_remove(T, edge)
+        # T.remove(edge)
 
     def handle_split_vertex(T: SortedList, D: list[Edge], color_point: ColorPoint) -> None:
-        edge_index = T.bisect(color_point.y) - 1
-        # if edge_index < 0 or edge_index > len(T) - 1:
-        #     raise RuntimeError(f"No edge to the left of {color_point}!")
-        edge: Edge = T[edge_index]  # type: ignore
+        edge = edge_on_left(color_point)
         if edge.helper is None:
             raise RuntimeError(f"Helper for {edge} was not set!")
         add_edge(D, color_point, edge.helper)
@@ -163,7 +192,7 @@ def make_monotone(polygon: list[tuple[float, float]]) -> tuple[list[Edge], list[
         if color_point.source_edge is None:
             raise RuntimeError(f"Source edge for {color_point} was not set!")
         edge = color_point.source_edge
-        T.add(edge)
+        T_add(T, edge)
         edge.helper = color_point
 
     def handle_merge_vertex(T: SortedList, D: list[Edge], color_point: ColorPoint) -> None:
@@ -172,16 +201,13 @@ def make_monotone(polygon: list[tuple[float, float]]) -> tuple[list[Edge], list[
         edge = color_point.target_edge
         if edge.helper is None:
             raise RuntimeError(f"Helper for {edge} was not set!")
-        if edge.helper.type == PointType.CONNECTIVE:
+        if edge.helper.type == PointType.MERGE:
             add_edge(D, color_point, edge.helper)
-        T.remove(edge)
-        edge_index = T.bisect(color_point.y) - 1
-        # if edge_index < 0 or edge_index > len(T) - 1:
-        #     raise RuntimeError(f"No edge to the left of {color_point}!")
-        edge: Edge = T[edge_index]  # type: ignore
+        T_remove(T, edge)
+        edge = edge_on_left(color_point)
         if edge.helper is None:
             raise RuntimeError(f"Helper for {edge} was not set!")
-        if edge.helper.type == PointType.CONNECTIVE:
+        if edge.helper.type == PointType.MERGE:
             add_edge(D, color_point, edge.helper)
         edge.helper = color_point
 
@@ -201,21 +227,18 @@ def make_monotone(polygon: list[tuple[float, float]]) -> tuple[list[Edge], list[
             edge = color_point.target_edge
             if edge.helper is None:
                 raise RuntimeError(f"Helper for {edge} was not set!")
-            if edge.helper.type == PointType.CONNECTIVE:
+            if edge.helper.type == PointType.MERGE:
                 add_edge(D, color_point, edge.helper)
-            T.remove(edge)
-            T.add(color_point.source_edge)
+            T_remove(T, edge)
             if color_point.source_edge is None:
                 raise RuntimeError(f"Source edge for {color_point} was not set!")
+            T_add(T, color_point.source_edge)
             color_point.source_edge.helper = color_point
         else:
-            edge_index = T.bisect(color_point.y) - 1
-            # if edge_index < 0 or edge_index > len(T) - 1:
-            #     raise RuntimeError(f"No edge to the left of {color_point}!")
-            edge: Edge = T[edge_index]  # type: ignore
+            edge = edge_on_left(color_point)
             if edge.helper is None:
                 raise RuntimeError(f"Helper for {edge} was not set!")
-            if edge.helper.type == PointType.CONNECTIVE:
+            if edge.helper.type == PointType.MERGE:
                 add_edge(D, color_point, edge.helper)
             edge.helper = color_point
 
@@ -229,15 +252,15 @@ def make_monotone(polygon: list[tuple[float, float]]) -> tuple[list[Edge], list[
         color_point = heapq.heappop(Q)
         Edge.line_y = color_point.y
         match color_point.type:
-            case PointType.STARTING:
+            case PointType.START:
                 handle_start_vertex(T, color_point)
-            case PointType.CLOSING:
+            case PointType.END:
                 handle_end_vertex(T, new_edges, color_point)
-            case PointType.CONNECTIVE:
+            case PointType.MERGE:
                 handle_merge_vertex(T, new_edges, color_point)
-            case PointType.SEPARATIVE:
+            case PointType.SPLIT:
                 handle_split_vertex(T, new_edges, color_point)
-            case PointType.CORRECT:
+            case PointType.REGULAR:
                 handle_regular_vertex(T, new_edges, color_point)
             case _:
                 raise RuntimeError(f"Cannot handle {color_point.type=}!")
@@ -261,27 +284,9 @@ def get_points_and_diagonals(polygon: list[tuple[float, float]]) -> tuple[list[t
 
 
 if __name__ == "__main__":
-    polygon_example = [
-        (2, 0),
-        (5, 1),
-        (6, 0),
-        (8, 3),
-        (7, 2),
-        (8, 7),
-        (6, 9),
-        (5, 8),
-        (2, 9),
-        (1, 7),
-        (2, 4),
-        (4, 5),
-        (3, 6),
-        (5, 7),
-        (5.5, 3),
-        (2, 2),
-        (1, 3),
-        (0, 1),
-    ]
+    polygon_example = [(2.0, 4.0), (4.75, 6.25), (3.0, 6.0), (5.0, 7.0), (5.5, 3.0), (6.0, 8.0), (2.0, 9.0), (1.0, 7.0)]
     points, diagonals = get_points_and_diagonals(polygon_example)
+
     print("POINTS")
     for i, point in enumerate(points):
         print(f"{i}. {point}")
