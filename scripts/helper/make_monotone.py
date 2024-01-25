@@ -153,8 +153,8 @@ def make_monotone(polygon: list[tuple[float, float]]) -> tuple[list[Edge], list[
             # edge_min_y = min(edge.source.y, edge.target.y)
             # edge_max_y = max(edge.source.y, edge.target.y)
             # if (edge_min_y <= color_point.y <= edge_max_y) and ...
-            if (Edge.find_sweep_intersection(edge, color_point.y) <= color_point.x) and (
-                left_edge is None or Edge.find_sweep_intersection(edge, color_point.y) >= Edge.find_sweep_intersection(left_edge, color_point.y)
+            if (Edge.find_sweep_intersection(edge, color_point.y) < color_point.x) and (
+                left_edge is None or Edge.find_sweep_intersection(edge, color_point.y) > Edge.find_sweep_intersection(left_edge, color_point.y)
             ):
                 left_edge = edge
         if left_edge is None:
