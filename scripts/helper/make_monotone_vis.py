@@ -3,6 +3,7 @@ import heapq
 from enum import Enum
 from sortedcontainers import SortedList
 from scripts.helper.utils import Point
+from scripts.visualizer.main import Visualizer
 
 
 class PointType(Enum):
@@ -56,13 +57,8 @@ class Edge:
         denom = y_1 - y_2
         if denom == 0:
             return x_1
-            raise RuntimeError(f"Could not find intersection between {edge} and {y=}")
-            return None
         p_x = ((y_1 * x_2 - x_1 * y_2) + (x_1 - x_2) * y) / denom
         # p_y = ((y_1 - y_2) * y) / denom
-        # if not min(x_1, x_2) <= p_x <= max(x_1, x_2):
-        #     raise RuntimeError(f"Could not find intersection between {edge} and {y=}")
-        #     return None
         return p_x
 
     @staticmethod
@@ -129,23 +125,11 @@ class ColorPoint(Point):
         return colored_points
 
 
-def make_monotone(polygon: list[tuple[float, float]]) -> tuple[list[Edge], list[Edge]]:
+def make_monotone(polygon: list[tuple[float, float]]) -> tuple[list[Edge], list[Edge], Visualizer]:
     def add_edge(D: list[Edge], source: ColorPoint, target: ColorPoint) -> None:
-        # print(f"New edge {source} -> {target}.")
+        vis.add_line_segment([source.as_tuple(), target.as_tuple()], color="red")
         edge = Edge(source, target)
         D.append(edge)
-
-    # def T_remove(T: SortedList, edge: Edge) -> None:
-    #     T.remove(edge)
-
-    # def T_add(T: SortedList, edge: Edge) -> None:
-    #     T.add(edge)
-
-    # def edge_on_left(color_point: ColorPoint) -> Edge:
-    #     edge_index = T.bisect(color_point.y) - 1
-    #     if edge_index < 0 or edge_index > len(T) - 1:
-    #         raise RuntimeError(f"No edge to the left of {color_point}!")
-    #     return T[edge_index]  # type: ignore
 
     def edge_on_left(color_point: ColorPoint) -> Edge:
         left_edge: Edge | None = None
@@ -159,9 +143,9 @@ def make_monotone(polygon: list[tuple[float, float]]) -> tuple[list[Edge], list[
         if left_edge is None:
             raise RuntimeError(f"No edge to the left of {color_point}!")
         return left_edge
-    
+
     def T_remove(T: SortedList, edge: Edge) -> None:
-        T.discard(edge)  # Problems with finding left edge!
+        T.discard(edge)
 
     def T_add(T: SortedList, edge: Edge) -> None:
         T.add(edge)
@@ -182,7 +166,6 @@ def make_monotone(polygon: list[tuple[float, float]]) -> tuple[list[Edge], list[
         if edge.helper.type == PointType.MERGE:
             add_edge(D, color_point, edge.helper)
         T_remove(T, edge)
-        # T.remove(edge)
 
     def handle_split_vertex(T: SortedList, D: list[Edge], color_point: ColorPoint) -> None:
         edge = edge_on_left(color_point)
@@ -243,8 +226,24 @@ def make_monotone(polygon: list[tuple[float, float]]) -> tuple[list[Edge], list[
                 add_edge(D, color_point, edge.helper)
             edge.helper = color_point
 
+    vis = Visualizer()
+    vis.add_polygon(polygon, fill=False)
+    vis_stack = []
     points = Point.as_points(polygon)
     Q = ColorPoint.color_points(points)
+    ################################### color points ###################################
+    for point in Q:
+        if point.type == PointType.START:
+            vis.add_point(point.as_tuple(), color="green")
+        elif point.type == PointType.END:
+            vis.add_point(point.as_tuple(), color="red")
+        elif point.type == PointType.MERGE:
+            vis.add_point(point.as_tuple(), color="blue")
+        elif point.type == PointType.SPLIT:
+            vis.add_point(point.as_tuple(), color="cyan")
+        elif point.type == PointType.REGULAR:
+            vis.add_point(point.as_tuple(), color="brown")
+    ################################### color points ###################################
     edges = Edge.as_edges(Q)
     new_edges: list[Edge] = []
     heapq.heapify(Q)  # event queue
@@ -252,6 +251,18 @@ def make_monotone(polygon: list[tuple[float, float]]) -> tuple[list[Edge], list[
     while Q:
         color_point = heapq.heappop(Q)
         Edge.line_y = color_point.y
+        ##################################### brush #####################################
+        line = ((0, color_point.y), (0.0001, color_point.y))
+        vis_stack.append(vis.add_line(line, color="red"))
+        try:
+            vis_edge = edge_on_left(color_point)
+            vis_stack.append(vis.add_line_segment([vis_edge.source.as_tuple(), vis_edge.target.as_tuple()]))
+        except RuntimeError:
+            pass
+        if color_point.target_edge is not None and color_point.target_edge.helper is not None:
+            helper = color_point.target_edge.helper
+            vis_stack.append(vis.add_point(helper.as_tuple(), color="purple"))
+        ##################################### brush #####################################
         match color_point.type:
             case PointType.START:
                 handle_start_vertex(T, color_point)
@@ -265,13 +276,18 @@ def make_monotone(polygon: list[tuple[float, float]]) -> tuple[list[Edge], list[
                 handle_regular_vertex(T, new_edges, color_point)
             case _:
                 raise RuntimeError(f"Cannot handle {color_point.type=}!")
-    return edges, new_edges
+
+        ##################################### clear #####################################
+        while vis_stack:
+            vis.remove_figure(vis_stack.pop())
+        ##################################### clear #####################################
+    return edges, new_edges, vis
 
 
-def get_points_and_diagonals(polygon: list[tuple[float, float]]) -> tuple[list[tuple[float, float]], list[tuple[int, int]]]:
+def get_points_and_diagonals(polygon: list[tuple[float, float]]) -> tuple[list[tuple[float, float]], list[tuple[int, int]], Visualizer]:
     points: list[tuple[float, float]] = []
     diagonals: list[tuple[int, int]] = []
-    edges, new_edges = make_monotone(polygon)
+    edges, new_edges, vis = make_monotone(polygon)
     for edge in edges:
         points.append(edge.source.as_tuple())
     for new_edge in new_edges:
@@ -281,12 +297,14 @@ def get_points_and_diagonals(polygon: list[tuple[float, float]]) -> tuple[list[t
             raise RuntimeError(f"ID for {new_edge.target} is None!")
         diagonal = (new_edge.source.id, new_edge.target.id)
         diagonals.append(diagonal)
-    return points, diagonals
+    for i in range(10):
+        vis.add_polygon([])
+    return points, diagonals, vis
 
 
 if __name__ == "__main__":
     polygon_example = [(2.0, 4.0), (4.75, 6.25), (3.0, 6.0), (5.0, 7.0), (5.5, 3.0), (6.0, 8.0), (2.0, 9.0), (1.0, 7.0)]
-    points, diagonals = get_points_and_diagonals(polygon_example)
+    points, diagonals, vis = get_points_and_diagonals(polygon_example)
 
     print("POINTS")
     for i, point in enumerate(points):
