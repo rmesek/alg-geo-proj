@@ -150,16 +150,17 @@ def make_monotone(polygon: list[tuple[float, float]]) -> tuple[list[Edge], list[
     def edge_on_left(color_point: ColorPoint) -> Edge:
         left_edge: Edge | None = None
         for edge in T:
-            edge_min_y = min(edge.source.y, edge.target.y)
-            edge_max_y = max(edge.source.y, edge.target.y)
-            # if (edge_min_y <= color_point.y <= edge_max_y) and (left_edge is None or Edge.find_sweep_intersection(edge, color_point.y) <= Edge.find_sweep_intersection(left_edge, color_point.y)):
-            if (left_edge is None or Edge.find_sweep_intersection(edge, color_point.y) <= Edge.find_sweep_intersection(left_edge, color_point.y)):
+            # edge_min_y = min(edge.source.y, edge.target.y)
+            # edge_max_y = max(edge.source.y, edge.target.y)
+            # if (edge_min_y <= color_point.y <= edge_max_y) and ...
+            if (Edge.find_sweep_intersection(edge, color_point.y) <= color_point.x) and (
+                left_edge is None or Edge.find_sweep_intersection(edge, color_point.y) >= Edge.find_sweep_intersection(left_edge, color_point.y)
+            ):
                 left_edge = edge
-
         if left_edge is None:
             raise RuntimeError(f"No edge to the left of {color_point}!")
         return left_edge
-    
+
     def T_remove(T: SortedList, edge: Edge) -> None:
         T.discard(edge)  # Problems with finding left edge!
 
